@@ -1,0 +1,63 @@
+Data Extraction
+file_path = "student_performance.csv"
+def Extract():
+    SP = pd.read_csv(file_path)
+    return SP
+
+Data Transformation
+def transform(SP):
+     
+    SP = SP.rename(columns = {"Assignment_Completion_Rate (%)": "Assignment_Completion_Rate", "Exam_Score (%)": "Exam_Score", "Attendance_Rate (%)":"Attendance_Rate"})
+    
+    """def GPA_Scale(Final_Grade):
+        if Final_Grade == "A":
+            return 4.0
+        elif Final_Grade == "B":
+            return 3.0
+        elif Final_Grade == "C":
+            return 2.0
+        elif Final_Grade == "D":
+            return 1.0
+        else :
+            return 0.0"""
+    
+    SP['CGPA'] = SP['Final_Grade'].apply(GPA_Scale)
+    
+    #Here I converted Assignment_Completion_Rate to 30%
+    SP['Assignment_Completion_Rate'] = SP['Assignment_Completion_Rate'] * 0.3
+    
+    #Here I converted Exam_Score to 70%
+    SP['Exam_Score'] = SP['Exam_Score'] * 0.7
+    
+    #I Added ['Assignment_Completion_Rate'] + ['Exam_Score'] to give 100% for Mastery_Score
+    SP['Mastery_Score'] = SP['Assignment_Completion_Rate'] + SP['Exam_Score']
+    return SP
+
+Data Loading
+
+def Load(SP):
+
+    Connection = psycopg2.connect(
+    host = "localhost",
+    dbname = "ETL_project",
+    user = "postgres",
+    password = "Holycenter@123"
+    )
+    
+    con = Connection.cursor()
+    for _, row in SP.iterrows():
+        con.execute("""
+        INSERT INTO Performance(
+        Student_ID, Age, Gender, Study_Hours_per_Week, Preferred_Learning_Style, Online_Courses_Completed, Participation_in_Discussions,
+        Assignment_Completion_Rate,Exam_Score, Attendance_Rate, Use_of_Educational_Tech,
+        Self_Reported_Stress_Level, Time_Spent_on_Social_Media, Sleep_Hours_per_Night, Final_Grade, CGPA, Mastery_Score)
+        VALUES(%s, %s, %s, %s, %s, %s, %s,%s, %s, %s, %s, %s, %s, %s,%s, %s, %s) """, tuple(row)
+               )
+    Connection.commit()
+    con.close()
+    Connection.close()
+
+if __name__ == "__main__":
+    raw_data = Extract()
+    clean_data = transform(raw_data)
+    Load(clean_data)
